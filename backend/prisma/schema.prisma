@@ -1,0 +1,52 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id         String   @id @default(cuid())
+  sessionId  String   @unique @map("session_id")
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+  
+  palettes   ColorPalette[]
+  exports    ExportHistory[]
+
+  @@map("users")
+}
+
+model ColorPalette {
+  id                String   @id @default(cuid())
+  userId            String?  @map("user_id")
+  name              String
+  prompt            String?
+  colors            String   // JSON as string for SQLite
+  accessibilityScore String? @map("accessibility_score") // JSON as string for SQLite
+  createdAt         DateTime @default(now()) @map("created_at")
+  updatedAt         DateTime @updatedAt @map("updated_at")
+  
+  user              User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  exports           ExportHistory[]
+
+  @@map("color_palettes")
+}
+
+model ExportHistory {
+  id         String   @id @default(cuid())
+  paletteId  String   @map("palette_id")
+  userId     String?  @map("user_id")
+  format     String
+  exportedAt DateTime @default(now()) @map("exported_at")
+  
+  palette    ColorPalette @relation(fields: [paletteId], references: [id], onDelete: Cascade)
+  user       User?        @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("export_history")
+}

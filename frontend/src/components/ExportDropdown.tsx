@@ -1,0 +1,691 @@
+import React, { useState, useRef, useEffect, useCallback } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { 
+  Download, 
+  ChevronDown, 
+  FileText, 
+  Code, 
+  Palette, 
+  Eye, 
+  Check, 
+  X, 
+  Clock,
+  Copy
+} from 'lucide-react';
+import { ColorPalette, ExportFormat, ExportData } from '../types/color';
+
+interface ExportDropdownProps {
+  palette: ColorPalette;
+  className?: string;
+  onExportSuccess?: (format: ExportFormat, filename: string) => void;
+  onExportError?: (format: ExportFormat, error: string) => void;
+}
+
+interface ExportOption {
+  format: ExportFormat;
+  label: string;
+  description: string;
+  icon: React.ReactNode;
+  fileExtension: string;
+  mimeType: string;
+}
+
+interface ExportHistoryItem {
+  id: string;
+  format: ExportFormat;
+  filename: string;
+  timestamp: Date;
+  paletteId: string;
+  paletteName: string;
+}
+
+interface ExportPreview {
+  format: ExportFormat;
+  content: string;
+  filename: string;
+}
+
+const ExportDropdown: React.FC<ExportDropdownProps> = ({
+  palette,
+  className = '',
+  onExportSuccess,
+  onExportError,
+}) => {
+  const [isOpen, setIsOpen] = useState(false);
+  const [isExporting, setIsExporting] = useState<ExportFormat | null>(null);
+  const [showPreview, setShowPreview] = useState<ExportPreview | null>(null);
+  const [exportHistory, setExportHistory] = useState<ExportHistoryItem[]>([]);
+  const [notification, setNotification] = useState<{
+    type: 'success' | 'error';
+    message: string;
+  } | null>(null);
+
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  const exportOptions: ExportOption[] = [
+    {
+      format: 'css',
+      label: 'CSS Variables',
+      description: 'CSS custom properties for web development',
+      icon: <Code className="w-4 h-4" />,
+      fileExtension: 'css',
+      mimeType: 'text/css',
+    },
+    {
+      format: 'scss',
+      label: 'SCSS Variables',
+      description: 'Sass variables for preprocessor workflows',
+      icon: <Code className="w-4 h-4" />,
+      fileExtension: 'scss',
+      mimeType: 'text/scss',
+    },
+    {
+      format: 'json',
+      label: 'JSON',
+      description: 'Structured data format for applications',
+      icon: <FileText className="w-4 h-4" />,
+      fileExtension: 'json',
+      mimeType: 'application/json',
+    },
+    {
+      format: 'tailwind',
+      label: 'Tailwind Config',
+      description: 'Tailwind CSS configuration format',
+      icon: <Palette className="w-4 h-4" />,
+      fileExtension: 'js',
+      mimeType: 'text/javascript',
+    },
+    {
+      format: 'ase',
+      label: 'Adobe ASE',
+      description: 'Adobe Swatch Exchange format',
+      icon: <Palette className="w-4 h-4" />,
+      fileExtension: 'ase',
+      mimeType: 'application/octet-stream',
+    },
+    {
+      format: 'sketch',
+      label: 'Sketch Palette',
+      description: 'Sketch app color palette format',
+      icon: <Palette className="w-4 h-4" />,
+      fileExtension: 'sketchpalette',
+      mimeType: 'application/json',
+    },
+    {
+      format: 'figma',
+      label: 'Figma Tokens',
+      description: 'Figma design tokens format',
+      icon: <Palette className="w-4 h-4" />,
+      fileExtension: 'json',
+      mimeType: 'application/json',
+    },
+  ];
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setIsOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  // Load export history from localStorage
+  useEffect(() => {
+    const savedHistory = localStorage.getItem('chromagen-export-history');
+    if (savedHistory) {
+      try {
+        const history = JSON.parse(savedHistory).map((item: any) => ({
+          ...item,
+          timestamp: new Date(item.timestamp),
+        }));
+        setExportHistory(history);
+      } catch (error) {
+        console.error('Failed to load export history:', error);
+      }
+    }
+  }, []);
+
+  // Save export history to localStorage
+  const saveExportHistory = useCallback((newItem: ExportHistoryItem) => {
+    const updatedHistory = [newItem, ...exportHistory].slice(0, 10); // Keep last 10 exports
+    setExportHistory(updatedHistory);
+    
+    try {
+      localStorage.setItem('chromagen-export-history', JSON.stringify(updatedHistory));
+    } catch (error) {
+      console.error('Failed to save export history:', error);
+    }
+  }, [exportHistory]);
+
+  // Generate export content based on format
+  const generateExportContent = useCallback((format: ExportFormat): ExportData => {
+    const timestamp = new Date().toISOString().split('T')[0];
+    const safePaletteName = palette.name.replace(/[^a-zA-Z0-9-_]/g, '-').toLowerCase();
+    const filename = `${safePaletteName}-${timestamp}`;
+
+    switch (format) {
+      case 'css':
+        const cssContent = `:root {
+  /* ${palette.name} - Generated by ChromaGen */
+${palette.colors.map(color => 
+  `  --color-${color.name.replace(/[^a-zA-Z0-9]/g, '-').toLowerCase()}: ${color.hex};`
+).join('\n')}
+
+  /* Color categories */
+${palette.colors.filter(c => c.category === 'primary').map(color => 
+  `  --primary-${color.name.replace(/[^a-zA-Z0-9]/g, '-').toLowerCase()}: ${color.hex};`
+).join('\n')}
+${palette.colors.filter(c => c.category === 'secondary').map(color => 
+  `  --secondary-${color.name.replace(/[^a-zA-Z0-9]/g, '-').toLowerCase()}: ${color.hex};`
+).join('\n')}
+${palette.colors.filter(c => c.category === 'accent').map(color => 
+  `  --accent-${color.name.replace(/[^a-zA-Z0-9]/g, '-').toLowerCase()}: ${color.hex};`
+).join('\n')}
+}
+
+/* Usage examples */
+${palette.colors.map(color => `
+.${color.name.replace(/[^a-zA-Z0-9]/g, '-').toLowerCase()} {
+  color: var(--color-${color.name.replace(/[^a-zA-Z0-9]/g, '-').toLowerCase()});
+}
+
+.bg-${color.name.replace(/[^a-zA-Z0-9]/g, '-').toLowerCase()} {
+  background-color: var(--color-${color.name.replace(/[^a-zA-Z0-9]/g, '-').toLowerCase()});
+}`).join('\n')}`;
+
+        return {
+          format,
+          content: cssContent,
+          filename: `${filename}.css`,
+          mimeType: 'text/css',
+        };
+
+      case 'scss':
+        const scssContent = `// ${palette.name} - Generated by ChromaGen
+
+// Color variables
+${palette.colors.map(color => 
+  `$color-${color.name.replace(/[^a-zA-Z0-9]/g, '-').toLowerCase()}: ${color.hex};`
+).join('\n')}
+
+// Color map
+$colors: (
+${palette.colors.map(color => 
+  `  "${color.name.replace(/[^a-zA-Z0-9]/g, '-').toLowerCase()}": ${color.hex},`
+).join('\n')}
+);
+
+// Category maps
+$primary-colors: (
+${palette.colors.filter(c => c.category === 'primary').map(color => 
+  `  "${color.name.replace(/[^a-zA-Z0-9]/g, '-').toLowerCase()}": ${color.hex},`
+).join('\n')}
+);
+
+$secondary-colors: (
+${palette.colors.filter(c => c.category === 'secondary').map(color => 
+  `  "${color.name.replace(/[^a-zA-Z0-9]/g, '-').toLowerCase()}": ${color.hex},`
+).join('\n')}
+);
+
+$accent-colors: (
+${palette.colors.filter(c => c.category === 'accent').map(color => 
+  `  "${color.name.replace(/[^a-zA-Z0-9]/g, '-').toLowerCase()}": ${color.hex},`
+).join('\n')}
+);
+
+// Helper function
+@function color($name) {
+  @return map-get($colors, $name);
+}`;
+
+        return {
+          format,
+          content: scssContent,
+          filename: `${filename}.scss`,
+          mimeType: 'text/scss',
+        };
+
+      case 'json':
+        const jsonContent = {
+          name: palette.name,
+          id: palette.id,
+          createdAt: palette.createdAt.toISOString(),
+          colors: palette.colors.map(color => ({
+            name: color.name,
+            hex: color.hex,
+            rgb: color.rgb,
+            hsl: color.hsl,
+            category: color.category,
+            usage: color.usage,
+            accessibility: color.accessibility,
+          })),
+          accessibility: palette.accessibilityScore,
+          metadata: {
+            exportedAt: new Date().toISOString(),
+            exportedBy: 'ChromaGen',
+            version: '1.0.0',
+          },
+        };
+
+        return {
+          format,
+          content: JSON.stringify(jsonContent, null, 2),
+          filename: `${filename}.json`,
+          mimeType: 'application/json',
+        };
+
+      case 'tailwind':
+        const tailwindContent = `// ${palette.name} - Tailwind CSS Configuration
+// Generated by ChromaGen
+
+module.exports = {
+  theme: {
+    extend: {
+      colors: {
+        // Custom palette colors
+${palette.colors.map(color => 
+  `        '${color.name.replace(/[^a-zA-Z0-9]/g, '-').toLowerCase()}': '${color.hex}',`
+).join('\n')}
+        
+        // Category-based colors
+        primary: {
+${palette.colors.filter(c => c.category === 'primary').map((color, index) => 
+  `          ${index === 0 ? 'DEFAULT' : (index + 1) * 100}: '${color.hex}',`
+).join('\n')}
+        },
+        secondary: {
+${palette.colors.filter(c => c.category === 'secondary').map((color, index) => 
+  `          ${index === 0 ? 'DEFAULT' : (index + 1) * 100}: '${color.hex}',`
+).join('\n')}
+        },
+        accent: {
+${palette.colors.filter(c => c.category === 'accent').map((color, index) => 
+  `          ${index === 0 ? 'DEFAULT' : (index + 1) * 100}: '${color.hex}',`
+).join('\n')}
+        },
+      },
+    },
+  },
+};
+
+// Usage examples:
+// bg-primary, text-secondary-200, border-accent-300
+// bg-${palette.colors[0]?.name.replace(/[^a-zA-Z0-9]/g, '-').toLowerCase() || 'color'}`;
+
+        return {
+          format,
+          content: tailwindContent,
+          filename: `${filename}-tailwind.js`,
+          mimeType: 'text/javascript',
+        };
+
+      case 'sketch':
+        const sketchContent = {
+          compatibleVersion: '3',
+          pluginVersion: '3.0.2',
+          colors: palette.colors.map(color => ({
+            name: color.name,
+            red: color.rgb.r / 255,
+            green: color.rgb.g / 255,
+            blue: color.rgb.b / 255,
+            alpha: 1,
+          })),
+        };
+
+        return {
+          format,
+          content: JSON.stringify(sketchContent, null, 2),
+          filename: `${filename}.sketchpalette`,
+          mimeType: 'application/json',
+        };
+
+      case 'figma':
+        const figmaContent = {
+          name: palette.name,
+          tokens: palette.colors.reduce((acc, color) => {
+            const tokenName = color.name.replace(/[^a-zA-Z0-9]/g, '-').toLowerCase();
+            acc[tokenName] = {
+              value: color.hex,
+              type: 'color',
+              description: color.usage,
+              category: color.category,
+            };
+            return acc;
+          }, {} as Record<string, any>),
+          metadata: {
+            exportedAt: new Date().toISOString(),
+            exportedBy: 'ChromaGen',
+            version: '1.0.0',
+          },
+        };
+
+        return {
+          format,
+          content: JSON.stringify(figmaContent, null, 2),
+          filename: `${filename}-figma.json`,
+          mimeType: 'application/json',
+        };
+
+      case 'ase':
+        // For ASE format, we'll create a simplified representation
+        // In a real implementation, you'd need a proper ASE encoder
+        const aseContent = `Adobe Swatch Exchange (ASE) format placeholder
+Palette: ${palette.name}
+Colors:
+${palette.colors.map(color => 
+  `${color.name}: ${color.hex} (RGB: ${color.rgb.r}, ${color.rgb.g}, ${color.rgb.b})`
+).join('\n')}
+
+Note: This is a placeholder. For actual ASE files, use a proper ASE encoder library.`;
+
+        return {
+          format,
+          content: aseContent,
+          filename: `${filename}.ase.txt`,
+          mimeType: 'text/plain',
+        };
+
+      default:
+        throw new Error(`Unsupported export format: ${format}`);
+    }
+  }, [palette]);
+
+  // Handle export preview
+  const handlePreview = useCallback((format: ExportFormat) => {
+    try {
+      const exportData = generateExportContent(format);
+      setShowPreview({
+        format,
+        content: exportData.content,
+        filename: exportData.filename,
+      });
+    } catch (error) {
+      console.error('Failed to generate preview:', error);
+      setNotification({
+        type: 'error',
+        message: `Failed to generate preview for ${format}`,
+      });
+    }
+  }, [generateExportContent]);
+
+  // Handle file download
+  const handleDownload = useCallback(async (format: ExportFormat) => {
+    setIsExporting(format);
+    
+    try {
+      const exportData = generateExportContent(format);
+      
+      // Create blob and download
+      const blob = new Blob([exportData.content], { type: exportData.mimeType });
+      const url = URL.createObjectURL(blob);
+      
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = exportData.filename;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      
+      URL.revokeObjectURL(url);
+      
+      // Add to export history
+      const historyItem: ExportHistoryItem = {
+        id: `${Date.now()}-${format}`,
+        format,
+        filename: exportData.filename,
+        timestamp: new Date(),
+        paletteId: palette.id,
+        paletteName: palette.name,
+      };
+      
+      saveExportHistory(historyItem);
+      
+      // Show success notification
+      setNotification({
+        type: 'success',
+        message: `Successfully exported ${exportData.filename}`,
+      });
+      
+      onExportSuccess?.(format, exportData.filename);
+      
+    } catch (error) {
+      console.error('Export failed:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+      
+      setNotification({
+        type: 'error',
+        message: `Export failed: ${errorMessage}`,
+      });
+      
+      onExportError?.(format, errorMessage);
+    } finally {
+      setIsExporting(null);
+      setIsOpen(false);
+    }
+  }, [generateExportContent, palette.id, palette.name, saveExportHistory, onExportSuccess, onExportError]);
+
+  // Copy preview content to clipboard
+  const handleCopyPreview = useCallback(async () => {
+    if (!showPreview) return;
+    
+    try {
+      await navigator.clipboard.writeText(showPreview.content);
+      setNotification({
+        type: 'success',
+        message: 'Content copied to clipboard',
+      });
+    } catch (error) {
+      console.error('Failed to copy to clipboard:', error);
+      setNotification({
+        type: 'error',
+        message: 'Failed to copy to clipboard',
+      });
+    }
+  }, [showPreview]);
+
+  // Clear notification after timeout
+  useEffect(() => {
+    if (notification) {
+      const timer = setTimeout(() => {
+        setNotification(null);
+      }, 3000);
+      
+      return () => clearTimeout(timer);
+    }
+  }, [notification]);
+
+  return (
+    <div className={`relative ${className}`} ref={dropdownRef}>
+      {/* Main Export Button */}
+      <button
+        onClick={() => setIsOpen(!isOpen)}
+        disabled={isExporting !== null}
+        className={`flex items-center space-x-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 transition-colors ${
+          isExporting ? 'opacity-50 cursor-not-allowed' : ''
+        }`}
+      >
+        <Download className="w-4 h-4" />
+        <span>{isExporting ? 'Exporting...' : 'Export'}</span>
+        <ChevronDown className={`w-4 h-4 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+      </button>
+
+      {/* Dropdown Menu */}
+      <AnimatePresence>
+        {isOpen && (
+          <motion.div
+            initial={{ opacity: 0, y: -10, scale: 0.95 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: -10, scale: 0.95 }}
+            transition={{ duration: 0.15 }}
+            className="absolute right-0 mt-2 w-80 bg-white rounded-lg shadow-xl border border-gray-200 z-50"
+          >
+            <div className="p-4">
+              <h3 className="text-lg font-semibold text-gray-900 mb-3">Export Palette</h3>
+              
+              {/* Export Options */}
+              <div className="space-y-2 max-h-64 overflow-y-auto">
+                {exportOptions.map((option) => (
+                  <div
+                    key={option.format}
+                    className="flex items-center justify-between p-3 rounded-lg border border-gray-200 hover:bg-gray-50 transition-colors"
+                  >
+                    <div className="flex items-center space-x-3">
+                      <div className="text-purple-600">
+                        {option.icon}
+                      </div>
+                      <div>
+                        <h4 className="font-medium text-gray-900">{option.label}</h4>
+                        <p className="text-sm text-gray-600">{option.description}</p>
+                      </div>
+                    </div>
+                    
+                    <div className="flex items-center space-x-2">
+                      <button
+                        onClick={() => handlePreview(option.format)}
+                        className="p-1 text-gray-400 hover:text-gray-600 transition-colors"
+                        title="Preview"
+                      >
+                        <Eye className="w-4 h-4" />
+                      </button>
+                      
+                      <button
+                        onClick={() => handleDownload(option.format)}
+                        disabled={isExporting === option.format}
+                        className="px-3 py-1 bg-purple-600 text-white text-sm rounded hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                      >
+                        {isExporting === option.format ? '...' : 'Download'}
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Export History */}
+              {exportHistory.length > 0 && (
+                <div className="mt-4 pt-4 border-t border-gray-200">
+                  <h4 className="text-sm font-medium text-gray-900 mb-2 flex items-center">
+                    <Clock className="w-4 h-4 mr-2" />
+                    Recent Exports
+                  </h4>
+                  <div className="space-y-1 max-h-32 overflow-y-auto">
+                    {exportHistory.slice(0, 3).map((item) => (
+                      <div
+                        key={item.id}
+                        className="flex items-center justify-between text-sm text-gray-600 p-2 rounded hover:bg-gray-50"
+                      >
+                        <div>
+                          <span className="font-medium">{item.filename}</span>
+                          <span className="text-xs text-gray-500 ml-2">
+                            {item.timestamp.toLocaleDateString()}
+                          </span>
+                        </div>
+                        <span className="text-xs bg-gray-100 px-2 py-1 rounded">
+                          {item.format.toUpperCase()}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Export Preview Modal */}
+      <AnimatePresence>
+        {showPreview && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
+            onClick={() => setShowPreview(null)}
+          >
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              className="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[80vh] overflow-hidden"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="p-6 border-b border-gray-200">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h3 className="text-xl font-semibold text-gray-900">Export Preview</h3>
+                    <p className="text-sm text-gray-600 mt-1">
+                      {showPreview.filename} ({showPreview.format.toUpperCase()})
+                    </p>
+                  </div>
+                  
+                  <div className="flex items-center space-x-2">
+                    <button
+                      onClick={handleCopyPreview}
+                      className="flex items-center space-x-2 px-3 py-2 text-gray-600 hover:text-gray-900 transition-colors"
+                    >
+                      <Copy className="w-4 h-4" />
+                      <span>Copy</span>
+                    </button>
+                    
+                    <button
+                      onClick={() => handleDownload(showPreview.format)}
+                      className="flex items-center space-x-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
+                    >
+                      <Download className="w-4 h-4" />
+                      <span>Download</span>
+                    </button>
+                    
+                    <button
+                      onClick={() => setShowPreview(null)}
+                      className="p-2 text-gray-400 hover:text-gray-600 transition-colors"
+                    >
+                      <X className="w-5 h-5" />
+                    </button>
+                  </div>
+                </div>
+              </div>
+              
+              <div className="p-6 overflow-auto max-h-96">
+                <pre className="text-sm text-gray-800 bg-gray-50 p-4 rounded-lg overflow-auto">
+                  <code>{showPreview.content}</code>
+                </pre>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Notification Toast */}
+      <AnimatePresence>
+        {notification && (
+          <motion.div
+            initial={{ opacity: 0, y: 50, scale: 0.9 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 50, scale: 0.9 }}
+            className="fixed bottom-4 right-4 z-50"
+          >
+            <div className={`flex items-center space-x-3 px-4 py-3 rounded-lg shadow-lg ${
+              notification.type === 'success' 
+                ? 'bg-green-600 text-white' 
+                : 'bg-red-600 text-white'
+            }`}>
+              {notification.type === 'success' ? (
+                <Check className="w-5 h-5" />
+              ) : (
+                <X className="w-5 h-5" />
+              )}
+              <span className="font-medium">{notification.message}</span>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+};
+
+export default ExportDropdown;

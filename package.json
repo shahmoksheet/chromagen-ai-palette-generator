@@ -1,0 +1,44 @@
+{
+  "name": "chromagen",
+  "version": "1.0.0",
+  "description": "AI-powered color palette generator with accessibility compliance",
+  "private": true,
+  "workspaces": [
+    "frontend",
+    "backend"
+  ],
+  "scripts": {
+    "dev": "node start-chromagen.js",
+    "start": "node start-production.js",
+    "dev:old": "node start-dev.js",
+    "dev:concurrent": "concurrently \"npm run dev:backend\" \"npm run dev:frontend\"",
+    "dev:frontend": "cd frontend && npm run dev",
+    "dev:backend": "cd backend && npm run dev",
+    "build": "npm run build:frontend && npm run build:backend",
+    "build:frontend": "cd frontend && npm run build",
+    "build:backend": "cd backend && npm run build",
+    "test": "npm run test:frontend && npm run test:backend",
+    "test:frontend": "cd frontend && npm run test",
+    "test:backend": "cd backend && npm run test",
+    "test:e2e": "cd e2e && npm run test",
+    "test:e2e:ui": "cd e2e && npm run test:ui",
+    "test:load": "cd e2e && npm run test:load",
+    "test:visual": "cd e2e && npm run test:visual",
+    "test:accessibility": "cd e2e && npm run test:accessibility",
+    "test:all": "node scripts/run-all-tests.js",
+    "lint": "npm run lint:frontend && npm run lint:backend",
+    "lint:frontend": "cd frontend && npm run lint",
+    "lint:backend": "cd backend && npm run lint",
+    "install:all": "npm install && cd frontend && npm install && cd ../backend && npm install && cd ../e2e && npm install"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  },
+  "engines": {
+    "node": ">=18.0.0",
+    "npm": ">=9.0.0"
+  },
+  "dependencies": {
+    "form-data": "^4.0.4"
+  }
+}

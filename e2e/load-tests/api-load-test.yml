@@ -1,0 +1,76 @@
+config:
+  target: 'http://localhost:3001'
+  phases:
+    - duration: 60
+      arrivalRate: 5
+      name: "Warm up"
+    - duration: 120
+      arrivalRate: 10
+      name: "Ramp up load"
+    - duration: 300
+      arrivalRate: 20
+      name: "Sustained load"
+    - duration: 60
+      arrivalRate: 50
+      name: "Peak load"
+  processor: "./load-test-processor.js"
+  
+scenarios:
+  - name: "Generate palette from text"
+    weight: 60
+    flow:
+      - post:
+          url: "/api/generate/text"
+          headers:
+            Content-Type: "application/json"
+          json:
+            prompt: "{{ $randomPrompt() }}"
+            options:
+              colorCount: 5
+              harmonyType: "complementary"
+              accessibilityLevel: "AA"
+          capture:
+            - json: "$.id"
+              as: "paletteId"
+          expect:
+            - statusCode: 200
+            - hasProperty: "colors"
+            - hasProperty: "accessibilityScore"
+      - think: 2
+      
+  - name: "Get palette history"
+    weight: 20
+    flow:
+      - get:
+          url: "/api/palettes/history/test-user"
+          expect:
+            - statusCode: 200
+            - contentType: json
+      - think: 1
+      
+  - name: "Export palette"
+    weight: 15
+    flow:
+      - post:
+          url: "/api/generate/text"
+          headers:
+            Content-Type: "application/json"
+          json:
+            prompt: "export test colors"
+          capture:
+            - json: "$.id"
+              as: "paletteId"
+      - get:
+          url: "/api/palettes/{{ paletteId }}/export/css"
+          expect:
+            - statusCode: 200
+            - contentType: "text/css"
+      - think: 1
+      
+  - name: "Health check"
+    weight: 5
+    flow:
+      - get:
+          url: "/api/health"
+          expect:
+            - statusCode: 200

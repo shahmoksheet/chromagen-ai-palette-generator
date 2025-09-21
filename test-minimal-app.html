@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Minimal ChromaGen</title>
+    <style>
+        body { font-family: Arial, sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; }
+        .status { padding: 10px; margin: 10px 0; border-radius: 5px; }
+        .success { background: #d4edda; color: #155724; }
+        .error { background: #f8d7da; color: #721c24; }
+        .info { background: #d1ecf1; color: #0c5460; }
+        button { background: #007bff; color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer; margin: 5px; }
+        button:hover { background: #0056b3; }
+    </style>
+</head>
+<body>
+    <h1>🧪 ChromaGen Minimal App Test</h1>
+    
+    <div id="status"></div>
+    
+    <button onclick="testBackend()">Test Backend</button>
+    <button onclick="testFrontend()">Test Frontend</button>
+    
+    <h2>Instructions:</h2>
+    <ol>
+        <li>Make sure backend is running: <code>cd backend && PORT=3333 node dist/server-simple.js</code></li>
+        <li>Make sure frontend is running: <code>cd frontend && npm run dev</code></li>
+        <li>Click "Test Backend" to verify API is working</li>
+        <li>Click "Test Frontend" to open the minimal app</li>
+        <li>Try generating a palette with text like "blue theme"</li>
+    </ol>
+    
+    <script>
+        function addStatus(message, type = 'info') {
+            const div = document.createElement('div');
+            div.className = `status ${type}`;
+            div.innerHTML = message;
+            document.getElementById('status').appendChild(div);
+        }
+        
+        async function testBackend() {
+            try {
+                const response = await fetch('http://localhost:3333/api/generate/text', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ prompt: 'test blue', userId: 'test' })
+                });
+                
+                if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                
+                const data = await response.json();
+                addStatus(`✅ Backend working! Generated: "${data.name}" with ${data.colors.length} colors`, 'success');
+            } catch (error) {
+                addStatus(`❌ Backend failed: ${error.message}`, 'error');
+            }
+        }
+        
+        function testFrontend() {
+            addStatus('🚀 Opening minimal frontend...', 'info');
+            window.open('http://localhost:3000', '_blank');
+        }
+        
+        // Auto-test backend on load
+        window.onload = () => {
+            addStatus('🧪 Starting tests...', 'info');
+            testBackend();
+        };
+    </script>
+</body>
+</html>
