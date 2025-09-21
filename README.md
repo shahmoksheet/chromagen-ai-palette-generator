@@ -1,6 +1,4 @@
-Of course. Here is the complete `README.md` file with your details integrated.
 
------
 
 # 🎨 ChromaGen - AI Color Palette Generator
 
