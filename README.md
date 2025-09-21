@@ -44,6 +44,8 @@ ChromaGen is an intelligent color palette generator that leverages Google's Gemi
 
 ## 📸 **Screenshots**
 <img width="803" height="2952" alt="image" src="https://github.com/user-attachments/assets/d50d397a-d75a-4d39-9658-74166513f3ec" />
+<img width="803" height="7505" alt="image" src="https://github.com/user-attachments/assets/88136856-72b9-4a34-b4bd-5d04bdde4df1" />
+<img width="1755" height="6080" alt="image" src="https://github.com/user-attachments/assets/4a68541a-4e1a-40cb-bf0a-47aea9809c31" />
 
 *Screenshots will be added after deployment*
 
